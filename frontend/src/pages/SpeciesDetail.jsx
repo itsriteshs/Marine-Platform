@@ -1,54 +1,10 @@
 // src/pages/SpeciesDetail.jsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import "./SpeciesDetail.css";
 
-// MOCK DATA: A massive object representing your full 60+ column schema
-const MOCK_DETAIL = {
-  species_id: 1, 
-  vernacularname: "Great White Shark", 
-  scientific_name: "Carcharodon carcharias", 
-  authority: "(Linnaeus, 1758)",
-  thumbnail_url: "https://images.unsplash.com/photo-1560275619-4662e36fa65c?auto=format&fit=crop&w=800&q=80",
-  
-  // Classification
-  kingdom: "Animalia", phylum: "Chordata", class: "Chondrichthyes", 
-  _order: "Lamniformes", family: "Lamnidae", genus: "Carcharodon", species: "C. carcharias",
-  
-  // Morphology
-  max_length_cm: 600, avg_length_cm: 450, max_weight_kg: 2268, avg_weight_kg: 1500, 
-  body_shape: "Fusiform", color_pattern: "Countershaded: dark grey dorsal, white ventral", 
-  sexual_dimorphism: "Females generally larger than males", age_of_maturity_years: 15,
-  
-  // Ecology
-  habitat_type: "Pelagic, Coastal, Epipelagic", diet: "Marine mammals, fish, seabirds", 
-  trophic_level: 4.5, activity_pattern: "Diurnal/Crepuscular", migration_type: "Highly migratory",
-  
-  // Environmental Tolerances
-  depth_range_min: 0, depth_range_max: 1200, preferred_depth_min: 0, preferred_depth_max: 250,
-  temperature_range_min: 12, temperature_range_max: 24, preferred_temp_min: 15, preferred_temp_max: 22,
-  salinity_range_min: 30, salinity_range_max: 35, preferred_salinity_min: 33, preferred_salinity_max: 35,
-  oxygen_preference_mg_l: 5.5, preferred_ph_min: 7.9, preferred_ph_max: 8.2, preferred_turbidity: 2.0,
-  
-  // Distribution & Conservation
-  global_distribution: "Cosmopolitan in temperate and subtropical coastal and offshore waters.", 
-  india_distribution: "Rarely reported in Indian coastal waters; occasionally spotted in deep pelagic zones.", 
-  native_range: "Global Oceans", reported_regions: ["Pacific", "Atlantic", "Indian Ocean", "Mediterranean"],
-  occurrence_status: "Native", endemic_status: "Non-endemic", 
-  iucn_status: "Vulnerable (VU)", population_trend: "Decreasing", 
-  major_threats: ["Bycatch", "Targeted fishing for fins/jaws", "Habitat degradation", "Climate change"],
-  
-  // Fisheries & Human Interaction
-  commercial_value: "Historically High, Currently Highly Protected", 
-  fishing_methods: ["Longline", "Gillnet", "Trawling (Bycatch)"], 
-  aquaculture_potential: "None",
-  
-  // Meta
-  data_source: "Global Oceanographic Biodiversity Init.", created_at: "2025-10-12", updated_at: "2026-04-14"
-};
-
 /* --- HELPER COMPONENTS --- */
-// Renders a standard label/value pair
+// Renders a standard label/value pair. Hides automatically if data is null/empty.
 const Field = ({ label, value, fullWidth }) => {
   if (value === null || value === undefined || value === "") return null;
   return (
@@ -62,6 +18,7 @@ const Field = ({ label, value, fullWidth }) => {
 // Intelligently renders a range (min - max) with a unit
 const RangeField = ({ label, min, max, unit }) => {
   if (min === undefined && max === undefined) return null;
+  if (min === null && max === null) return null;
   const displayValue = min && max ? `${min} - ${max} ${unit}` : `${min || max} ${unit} (est.)`;
   return <Field label={label} value={displayValue} />;
 };
@@ -86,9 +43,67 @@ const SpeciesDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  // In production: const [record, setRecord] = useState(null); fetch inside useEffect based on 'id'
-  const record = MOCK_DETAIL;
+  // 1. Data States
+  const [record, setRecord] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // 2. Fetch the specific fish from FastAPI
+  useEffect(() => {
+    const fetchDetail = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const response = await fetch(`http://localhost:8000/api/species/${id}`);
+        
+        if (!response.ok) {
+          if (response.status === 404) throw new Error("Species not found in the database.");
+          throw new Error(`Failed to fetch: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        setRecord(data);
+      } catch (err) {
+        console.error("API Error:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDetail();
+  }, [id]); // Re-run if the ID in the URL changes
+
+  // 3. Loading State UI
+  if (loading) {
+    return (
+      <div className="species-detail-page flex items-center justify-center">
+        <div style={{ padding: '60px', textAlign: 'center', color: '#64748b', fontSize: '18px' }}>
+          Loading deep sea data...
+        </div>
+      </div>
+    );
+  }
+
+  // 4. Error State UI
+  if (error || !record) {
+    return (
+      <div className="species-detail-page">
+        <div className="detail-container">
+          <button onClick={() => navigate(-1)} className="back-button mb-6">
+            &larr; Back to Taxonomy Grid
+          </button>
+          <div style={{ padding: '40px', textAlign: 'center', backgroundColor: '#fee2e2', color: '#ef4444', borderRadius: '16px' }}>
+            <h2>Something went wrong</h2>
+            <p>{error || "Could not load species details."}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 5. Success UI (Rendering the 60+ columns)
   return (
     <div className="species-detail-page">
       <div className="detail-container">
@@ -100,14 +115,20 @@ const SpeciesDetail = () => {
         {/* 1. HERO SECTION */}
         <div className="species-hero">
           <div className="species-hero-image">
-            <img src={record.thumbnail_url} alt={record.vernacularname} />
+            {/* Fallback image if thumbnail is null */}
+            <img 
+              src={record.thumbnail_url || (record.image_urls && record.image_urls[0]) || "https://images.unsplash.com/photo-1582967788606-a171c1080cb0?auto=format&fit=crop&w=800&q=80"} 
+              alt={record.vernacularname || record.scientific_name} 
+            />
           </div>
           <div className="species-hero-content">
-            <h1 className="species-hero-title">{record.vernacularname}</h1>
+            <h1 className="species-hero-title">{record.vernacularname || "Unknown Common Name"}</h1>
             <h2 className="species-hero-subtitle">
               {record.scientific_name} <span className="authority-text">{record.authority}</span>
             </h2>
-            <div className="hero-badge">{record.iucn_status}</div>
+            {record.iucn_status && (
+              <div className="hero-badge">{record.iucn_status}</div>
+            )}
           </div>
         </div>
 
@@ -120,7 +141,8 @@ const SpeciesDetail = () => {
               <div className="data-grid">
                 <Field label="Kingdom" value={record.kingdom} />
                 <Field label="Phylum" value={record.phylum} />
-                <Field label="Class" value={record.class} />
+                {/* Notice we use class_name here! */}
+                <Field label="Class" value={record.class_name} />
                 <Field label="Order" value={record._order} />
                 <Field label="Family" value={record.family} />
                 <Field label="Genus" value={record.genus} />
@@ -136,12 +158,12 @@ const SpeciesDetail = () => {
             <div className="data-group">
               <h3>Morphology & Biology</h3>
               <div className="data-grid three-col">
-                <Field label="Max Length" value={`${record.max_length_cm} cm`} />
-                <Field label="Avg Length" value={`${record.avg_length_cm} cm`} />
+                <Field label="Max Length" value={record.max_length_cm ? `${record.max_length_cm} cm` : null} />
+                <Field label="Avg Length" value={record.avg_length_cm ? `${record.avg_length_cm} cm` : null} />
                 <Field label="Body Shape" value={record.body_shape} />
-                <Field label="Max Weight" value={`${record.max_weight_kg} kg`} />
-                <Field label="Avg Weight" value={`${record.avg_weight_kg} kg`} />
-                <Field label="Age of Maturity" value={`${record.age_of_maturity_years} yrs`} />
+                <Field label="Max Weight" value={record.max_weight_kg ? `${record.max_weight_kg} kg` : null} />
+                <Field label="Avg Weight" value={record.avg_weight_kg ? `${record.avg_weight_kg} kg` : null} />
+                <Field label="Age of Maturity" value={record.age_of_maturity_years ? `${record.age_of_maturity_years} yrs` : null} />
               </div>
               <div className="data-grid two-col" style={{ marginTop: '20px' }}>
                 <Field label="Color Pattern" value={record.color_pattern} />
@@ -175,8 +197,8 @@ const SpeciesDetail = () => {
               </div>
               <div className="data-grid three-col" style={{ marginTop: '20px' }}>
                 <RangeField label="Preferred pH" min={record.preferred_ph_min} max={record.preferred_ph_max} unit="" />
-                <Field label="Preferred Turbidity" value={`${record.preferred_turbidity} NTU`} />
-                <Field label="Oxygen Preference" value={`${record.oxygen_preference_mg_l} mg/L`} />
+                <Field label="Preferred Turbidity" value={record.preferred_turbidity ? `${record.preferred_turbidity} NTU` : null} />
+                <Field label="Oxygen Preference" value={record.oxygen_preference_mg_l ? `${record.oxygen_preference_mg_l} mg/L` : null} />
               </div>
             </div>
 
@@ -211,8 +233,8 @@ const SpeciesDetail = () => {
 
         {/* 7. METADATA */}
         <div className="metadata-footer">
-          <span>Source: {record.data_source}</span>
-          <span>Last Updated: {record.updated_at}</span>
+          <span>Source: {record.data_source || "Marine Database"}</span>
+          <span>Last Updated: {record.updated_at ? new Date(record.updated_at).toLocaleDateString() : "N/A"}</span>
         </div>
 
       </div>
@@ -221,11 +243,3 @@ const SpeciesDetail = () => {
 };
 
 export default SpeciesDetail;
-// after api is created
-// const [record, setRecord] = useState(null);
-
-// useEffect(() => {
-//   axios.get(`/api/species/${id}`).then(res => setRecord(res.data));
-// }, [id]);
-
-// if (!record) return <div>Loading...</div>;
