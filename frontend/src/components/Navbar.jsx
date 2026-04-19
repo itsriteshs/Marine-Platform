@@ -29,6 +29,7 @@ const Navbar = () => {
         <Link to="/" className="nav-link">Home</Link>
         <Link to="/taxonomy" className="nav-link">Taxonomy</Link>
         <Link to="/analysis" className="nav-link">Analysis</Link>
+        <Link to="/search" className="nav-link">Search</Link>
       </div>
       <div className="navbar-actions">
         <button className="support-btn">
