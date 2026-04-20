@@ -1,0 +1,176 @@
+/* src/components/OtolithResults.css */
+
+.results-container {
+  margin-top: 1.5rem;
+  animation: fadeInUp 0.5s ease-out;
+}
+
+.results-title {
+  font-size: 1.25rem; /* Scaled down */
+  font-weight: bold;
+  color: #0f172a;
+  margin-bottom: 1rem;
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem; /* Tighter gap between cards */
+}
+
+@media (min-width: 768px) {
+  .results-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .card-full-width {
+    grid-column: span 2;
+  }
+}
+
+.result-card {
+  background-color: #ffffff;
+  padding: 1.25rem; /* Tighter padding inside cards */
+  border-radius: 0.75rem; /* Slightly smaller border radius */
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.card-label {
+  font-size: 0.75rem; /* Scaled down */
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: bold;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+}
+
+.species-name {
+  font-size: 1.5rem; /* Scaled down from 1.875rem */
+  font-weight: bold;
+  color: #0e7490;
+  margin: 0;
+}
+
+.confidence-bar-bg {
+  margin-top: 0.75rem;
+  width: 100%;
+  background-color: #f1f5f9;
+  border-radius: 9999px;
+  height: 0.5rem; /* Thinner bar */
+}
+
+.confidence-bar-fill {
+  background-color: #0891b2;
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.5s ease-in-out;
+}
+
+.confidence-text {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 0.5rem;
+}
+
+.age-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.age-number {
+  font-size: 1.75rem; /* Scaled down from 2.25rem */
+  font-weight: bold;
+  color: #1e293b;
+  line-height: 1;
+  margin: 0;
+}
+
+.age-unit {
+  font-size: 1rem;
+  color: #64748b;
+  margin-bottom: 0.1rem;
+}
+
+.age-subtext {
+  font-size: 0.875rem;
+  color: #475569;
+  margin-top: 0.5rem;
+}
+
+.morph-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .morph-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.morph-box {
+  padding: 0.75rem;
+  background-color: #f8fafc;
+  border-radius: 0.5rem;
+}
+
+.morph-label {
+  font-size: 0.7rem;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+}
+
+.morph-value {
+  font-size: 0.875rem;
+  font-weight: bold;
+  color: #1e293b;
+  margin: 0;
+}
+
+.image-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+@media (min-width: 768px) {
+  .image-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.image-title {
+  font-size: 0.875rem;
+  font-weight: bold;
+  color: #334155;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+/* THE MOST IMPORTANT CHANGE: Image sizing */
+.result-image {
+  width: 100%;
+  height: 250px; /* Lock the maximum height */
+  object-fit: contain; /* Ensure the image doesn't stretch or crop */
+  background-color: #f8fafc; /* Add a subtle backdrop for padding */
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -1,55 +1,85 @@
 // src/pages/Search.jsx
 import React, { useState } from "react";
 import "./Search.css";
+import OtolithResults from "../components/OtolithResults";
+import EdnaResults from "../components/EdnaResults"; // Make sure you have this!
 
 const Search = () => {
   const [activeTab, setActiveTab] = useState("nlp");
-  const [nlpQuery, setNlpQuery] = useState("");
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState(null);
 
-  const handleFileChange = (e) => {
-    setSelectedFile(e.target.files[0]);
-  };
+  // --- INDEPENDENT STATES FOR EACH TAB ---
+  
+  // NLP State
+  const [nlpQuery, setNlpQuery] = useState("");
+  const [nlpLoading, setNlpLoading] = useState(false);
+  const [nlpResults, setNlpResults] = useState(null);
+
+  // Otolith State
+  const [otolithFile, setOtolithFile] = useState(null);
+  const [otolithLoading, setOtolithLoading] = useState(false);
+  const [otolithResults, setOtolithResults] = useState(null);
+
+  // eDNA State
+  const [ednaFile, setEdnaFile] = useState(null);
+  const [ednaLoading, setEdnaLoading] = useState(false);
+  const [ednaResults, setEdnaResults] = useState(null);
+
+  // --- INDEPENDENT SUBMIT LOGIC ---
 
   const handleSearchSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setResults(null);
 
-    try {
-      let endpoint = "";
-      let formData = new FormData();
-
-      if (activeTab === "nlp") {
-        endpoint = "http://localhost:8000/api/search/nlp";
-        // Sending JSON for text
-        const response = await fetch(endpoint, {
+    if (activeTab === "nlp") {
+      setNlpLoading(true);
+      setNlpResults(null);
+      try {
+        const response = await fetch("http://localhost:8000/api/search/nlp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ query: nlpQuery }),
         });
-        const data = await response.json();
-        setResults(data);
-      } else {
-        // Otolith and eDNA require file uploads
-        endpoint = activeTab === "otolith" 
-          ? "http://localhost:8000/api/search/otolith" 
-          : "http://localhost:8000/api/search/edna";
-          
-        formData.append("file", selectedFile);
-        const response = await fetch(endpoint, {
-          method: "POST",
-          body: formData, // Browser automatically sets the correct multipart headers
-        });
-        const data = await response.json();
-        setResults(data);
+        setNlpResults(await response.json());
+      } catch (error) {
+        setNlpResults({ error: "Failed to connect to NLP service." });
+      } finally {
+        setNlpLoading(false);
       }
-    } catch (error) {
-      console.error("Search failed:", error);
-    } finally {
-      setLoading(false);
+    } 
+    
+    else if (activeTab === "otolith") {
+      setOtolithLoading(true);
+      setOtolithResults(null);
+      let formData = new FormData();
+      formData.append("file", otolithFile);
+      try {
+        const response = await fetch("http://localhost:8001/analyze", {
+          method: "POST",
+          body: formData,
+        });
+        setOtolithResults(await response.json());
+      } catch (error) {
+        setOtolithResults({ error: "Failed to connect to Otolith service." });
+      } finally {
+        setOtolithLoading(false);
+      }
+    } 
+    
+    else if (activeTab === "edna") {
+      setEdnaLoading(true);
+      setEdnaResults(null);
+      let formData = new FormData();
+      formData.append("file", ednaFile);
+      try {
+        const response = await fetch("http://localhost:8002/analyze_edna", {
+          method: "POST",
+          body: formData,
+        });
+        setEdnaResults(await response.json());
+      } catch (error) {
+        setEdnaResults({ error: "Failed to connect to eDNA service." });
+      } finally {
+        setEdnaLoading(false);
+      }
     }
   };
 
@@ -62,19 +92,19 @@ const Search = () => {
         <div className="tab-container mb-8">
           <button 
             className={`tab-btn ${activeTab === "nlp" ? "active" : ""}`}
-            onClick={() => { setActiveTab("nlp"); setSelectedFile(null); }}
+            onClick={() => setActiveTab("nlp")}
           >
             NLP Query
           </button>
           <button 
             className={`tab-btn ${activeTab === "otolith" ? "active" : ""}`}
-            onClick={() => { setActiveTab("otolith"); setNlpQuery(""); }}
+            onClick={() => setActiveTab("otolith")}
           >
             Otolith Recognition
           </button>
           <button 
             className={`tab-btn ${activeTab === "edna" ? "active" : ""}`}
-            onClick={() => { setActiveTab("edna"); setNlpQuery(""); }}
+            onClick={() => setActiveTab("edna")}
           >
             eDNA Sequencing
           </button>
@@ -84,63 +114,104 @@ const Search = () => {
         <div className="search-box bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
           <form onSubmit={handleSearchSubmit} className="flex flex-col gap-6">
             
+            {/* NLP TAB */}
             {activeTab === "nlp" && (
-              <div className="input-group">
-                <label className="font-bold text-slate-700 mb-2 block">Natural Language Query</label>
-                <textarea 
-                  placeholder="e.g., Show me all endangered pelagic species found in the Indian Ocean..."
-                  className="w-full p-4 border border-slate-300 rounded-xl focus:border-cyan-600 focus:outline-none"
-                  rows="4"
-                  value={nlpQuery}
-                  onChange={(e) => setNlpQuery(e.target.value)}
-                  required
-                />
-              </div>
+              <>
+                <div className="input-group">
+                  <label className="font-bold text-slate-700 mb-2 block">Natural Language Query</label>
+                  <textarea 
+                    placeholder="e.g., Show me all endangered pelagic species found in the Indian Ocean..."
+                    className="w-full p-4 border border-slate-300 rounded-xl focus:border-cyan-600 focus:outline-none"
+                    rows="4"
+                    value={nlpQuery}
+                    onChange={(e) => setNlpQuery(e.target.value)}
+                    required
+                  />
+                </div>
+                <button type="submit" className="submit-btn" disabled={nlpLoading}>
+                  {nlpLoading ? "Processing Query..." : "Run Analysis"}
+                </button>
+              </>
             )}
 
+            {/* OTOLITH TAB */}
             {activeTab === "otolith" && (
-              <div className="input-group">
-                <label className="font-bold text-slate-700 mb-2 block">Upload Otolith Image</label>
-                <p className="text-sm text-slate-500 mb-4">Upload a high-resolution microscopic image for morphological classification.</p>
-                <input 
-                  type="file" 
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="file-input"
-                  required
-                />
-              </div>
+              <>
+                <div className="input-group">
+                  <label className="font-bold text-slate-700 mb-2 block">Upload Otolith Image</label>
+                  <p className="text-sm text-slate-500 mb-4">Upload a high-resolution microscopic image for morphological classification.</p>
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    onChange={(e) => setOtolithFile(e.target.files[0])}
+                    className="file-input"
+                    required
+                  />
+                </div>
+                <button type="submit" className="submit-btn" disabled={otolithLoading}>
+                  {otolithLoading ? "Analyzing Image..." : "Run Analysis"}
+                </button>
+              </>
             )}
 
+            {/* eDNA TAB */}
             {activeTab === "edna" && (
-              <div className="input-group">
-                <label className="font-bold text-slate-700 mb-2 block">Upload eDNA Sequence</label>
-                <p className="text-sm text-slate-500 mb-4">Upload FASTA or CSV sequence files for biodiversity matching.</p>
-                <input 
-                  type="file" 
-                  accept=".fasta,.csv,.txt"
-                  onChange={handleFileChange}
-                  className="file-input"
-                  required
-                />
-              </div>
+              <>
+                <div className="input-group">
+                  <label className="font-bold text-slate-700 mb-2 block">Upload eDNA Sequence</label>
+                  <p className="text-sm text-slate-500 mb-4">Upload FASTA or CSV sequence files for biodiversity matching.</p>
+                  <input 
+                    type="file" 
+                    accept=".fasta,.csv,.txt"
+                    onChange={(e) => setEdnaFile(e.target.files[0])}
+                    className="file-input"
+                    required
+                  />
+                </div>
+                <button type="submit" className="submit-btn" disabled={ednaLoading}>
+                  {ednaLoading ? "Sequencing DNA (This may take a few minutes)..." : "Run Analysis"}
+                </button>
+              </>
             )}
-
-            <button type="submit" className="submit-btn" disabled={loading}>
-              {loading ? "Processing..." : "Run Analysis"}
-            </button>
           </form>
         </div>
 
-        {/* Results Area Placeholder */}
-        {results && (
-          <div className="results-area mt-8 bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-            <h3 className="text-xl font-bold text-slate-800 mb-4">Analysis Results</h3>
-            <pre className="bg-slate-50 p-4 rounded-lg overflow-auto text-sm">
-              {JSON.stringify(results, null, 2)}
-            </pre>
-          </div>
-        )}
+        {/* --- DYNAMIC RESULTS AREA --- */}
+        <div className="mt-8">
+          
+          {/* NLP Results */}
+          {activeTab === "nlp" && nlpResults && (
+            nlpResults.error ? (
+              <div className="bg-red-50 p-6 rounded-2xl border border-red-200 text-red-700">{nlpResults.error}</div>
+            ) : (
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                <h3 className="text-xl font-bold text-slate-800 mb-4">NLP Results</h3>
+                <pre className="bg-slate-50 p-4 rounded-lg overflow-auto text-sm">
+                  {JSON.stringify(nlpResults, null, 2)}
+                </pre>
+              </div>
+            )
+          )}
+
+          {/* Otolith Results */}
+          {activeTab === "otolith" && otolithResults && (
+            otolithResults.error ? (
+              <div className="bg-red-50 p-6 rounded-2xl border border-red-200 text-red-700">{otolithResults.error}</div>
+            ) : (
+              <OtolithResults results={otolithResults} />
+            )
+          )}
+
+          {/* eDNA Results */}
+          {activeTab === "edna" && ednaResults && (
+            ednaResults.error ? (
+              <div className="bg-red-50 p-6 rounded-2xl border border-red-200 text-red-700">{ednaResults.error}</div>
+            ) : (
+              <EdnaResults results={ednaResults} />
+            )
+          )}
+
+        </div>
       </div>
     </div>
   );
