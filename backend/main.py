@@ -62,30 +62,27 @@ def get_species_detail(species_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Species not found")
         
     return db_species
+
 @app.get("/api/spatial/hotspots")
 def get_spatial_hotspots(
     region: Optional[str] = Query("Global", description="Filter by region"),
+    species_id: Optional[int] = Query(None, description="Filter by species"),
     db: Session = Depends(get_db)
 ):
-    """
-    Returns [longitude, latitude, count] arrays for the ECharts Spatial Map.
-    Extracts data dynamically from the PostgreSQL JSONB column.
-    """
-    # Base query extracting coordinates directly from JSONB
     query = db.query(
         models.OccurrenceData.data['decimalLongitude'].astext.cast(Float).label('lon'),
         models.OccurrenceData.data['decimalLatitude'].astext.cast(Float).label('lat'),
         models.OccurrenceData.data['individualCount'].astext.cast(Integer).label('count')
     )
 
-    # Apply region filter from the React Topbar
     if region and region != "Global":
         query = query.filter(models.OccurrenceData.region == region)
+        
+    if species_id:
+        query = query.filter(models.OccurrenceData.species_id == species_id)
 
-    # Execute query
     results = query.all()
 
-    # Format exactly how Apache ECharts expects the data
     formatted_data = [
         [row.lon, row.lat, row.count] 
         for row in results 
@@ -93,19 +90,16 @@ def get_spatial_hotspots(
     ]
 
     return {"hotspots": formatted_data}
+
 @app.get("/api/spatial/depth-trend")
 def get_spatial_depth_trend(
     region: Optional[str] = Query("Global", description="Filter by region"),
+    species_id: Optional[int] = Query(None, description="Filter by species"),
     db: Session = Depends(get_db)
 ):
-    """
-    Returns average sighting depth grouped by year.
-    """
-    # Extract year and depth from JSONB
     year_col = models.OccurrenceData.data['year'].astext.cast(Integer).label('year')
     depth_col = models.OccurrenceData.data['waterDepth_m'].astext.cast(Float)
 
-    # Base query: Group by year, calculate average depth
     query = db.query(
         year_col,
         func.avg(depth_col).label('avg_depth')
@@ -114,33 +108,29 @@ def get_spatial_depth_trend(
         depth_col.is_not(None)
     )
 
-    # Apply Region Filter
     if region and region != "Global":
         query = query.filter(models.OccurrenceData.region == region)
+        
+    if species_id:
+        query = query.filter(models.OccurrenceData.species_id == species_id)
 
-    # Group and Order
     query = query.group_by(year_col).order_by(year_col)
     results = query.all()
 
-    # ECharts needs two separate arrays for a line chart: X-axis (years) and Y-axis (depths)
     years = [row.year for row in results]
-    depths = [round(row.avg_depth, 2) for row in results] # Round to 2 decimal places
+    depths = [round(row.avg_depth, 2) for row in results] 
 
     return {"years": years, "depths": depths}
 
 @app.get("/api/spatial/sampling-effort")
 def get_spatial_sampling_effort(
     region: Optional[str] = Query("Global", description="Filter by region"),
+    species_id: Optional[int] = Query(None, description="Filter by species"),
     db: Session = Depends(get_db)
 ):
-    """
-    Returns total sampling effort grouped by month in chronological order.
-    """
-    # Extract month and effort from JSONB
     month_col = models.OccurrenceData.data['month'].astext.label('month')
     effort_col = models.OccurrenceData.data['samplingEffort'].astext.cast(Integer)
 
-    # Base query: Group by month, sum the effort
     query = db.query(
         month_col,
         func.sum(effort_col).label('total_effort')
@@ -149,19 +139,16 @@ def get_spatial_sampling_effort(
         effort_col.is_not(None)
     )
 
-    # Apply Region Filter
     if region and region != "Global":
         query = query.filter(models.OccurrenceData.region == region)
+        
+    if species_id:
+        query = query.filter(models.OccurrenceData.species_id == species_id)
 
     results = query.group_by(month_col).all()
 
-    # Dictionary to hold the results dynamically
     effort_dict = {row.month: row.total_effort for row in results}
-
-    # Standard chronological order array
     chronological_months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    
-    # Map the database results to the correct chronological order (default to 0 if no data)
     efforts = [effort_dict.get(month, 0) for month in chronological_months]
 
     return {"months": chronological_months, "efforts": efforts}
@@ -171,93 +158,75 @@ def get_spatial_sampling_effort(
 
 @app.get("/api/population/abundance")
 def get_population_abundance(
-    region: Optional[str] = Query("Global", description="Filter by region"),
+    region: Optional[str] = Query("Global"),
+    species_id: Optional[int] = Query(None), # <-- 1. Add this
     db: Session = Depends(get_db)
 ):
-    """
-    Returns monthly abundance trends for the Hero Line Chart.
-    """
     month_col = models.MonthlyLocationAbundance.data['month'].astext.label('month')
     abundance_col = models.MonthlyLocationAbundance.data['abundance'].astext.cast(Integer)
 
-    query = db.query(
-        month_col,
-        func.sum(abundance_col).label('total_abundance')
-    ).filter(
-        month_col.is_not(None), 
-        abundance_col.is_not(None)
-    )
+    query = db.query(month_col, func.sum(abundance_col).label('total_abundance')).filter(month_col.is_not(None))
 
     if region and region != "Global":
         query = query.filter(models.MonthlyLocationAbundance.region == region)
+    
+    # 2. Add the species filter
+    if species_id:
+        query = query.filter(models.MonthlyLocationAbundance.species_id == species_id)
 
     results = query.group_by(month_col).all()
     
     abundance_dict = {row.month: row.total_abundance for row in results}
     chronological_months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    
-    # Fill in missing months with 0
-    trends = [abundance_dict.get(month, 0) for month in chronological_months]
-
-    return {"months": chronological_months, "abundance": trends}
+    return {"months": chronological_months, "abundance": [abundance_dict.get(m, 0) for m in chronological_months]}
 
 
 @app.get("/api/population/demographics")
 def get_population_demographics(
-    region: Optional[str] = Query("Global", description="Filter by region"),
+    region: Optional[str] = Query("Global"),
+    species_id: Optional[int] = Query(None), # <-- 1. Add this
     db: Session = Depends(get_db)
 ):
-    """
-    Returns the sum of Adults vs Juveniles for a Donut Chart.
-    """
     adult_col = models.JuvenileAdultLocationYear.data['adult_abundance'].astext.cast(Integer)
     juv_col = models.JuvenileAdultLocationYear.data['juvenile_abundance'].astext.cast(Integer)
 
-    query = db.query(
-        func.sum(adult_col).label('total_adults'),
-        func.sum(juv_col).label('total_juveniles')
-    )
+    query = db.query(func.sum(adult_col).label('total_adults'), func.sum(juv_col).label('total_juveniles'))
 
     if region and region != "Global":
         query = query.filter(models.JuvenileAdultLocationYear.region == region)
+        
+    # 2. Add the species filter
+    if species_id:
+        query = query.filter(models.JuvenileAdultLocationYear.species_id == species_id)
 
     result = query.first()
-    
-    # Handle cases where there is no data for a region
-    adults = result.total_adults if result and result.total_adults else 0
-    juveniles = result.total_juveniles if result and result.total_juveniles else 0
-
     return {
         "demographics": [
-            {"name": "Adults", "value": adults},
-            {"name": "Juveniles", "value": juveniles}
+            {"name": "Adults", "value": result.total_adults if result and result.total_adults else 0},
+            {"name": "Juveniles", "value": result.total_juveniles if result and result.total_juveniles else 0}
         ]
     }
 
 
 @app.get("/api/population/growth")
-def get_population_growth(db: Session = Depends(get_db)):
-    """
-    Returns the average fish length grouped by estimated age from Otolith data.
-    """
+def get_population_growth(
+    species_id: Optional[int] = Query(None), # <-- 1. Add this
+    db: Session = Depends(get_db)
+):
     query = db.query(
         models.OtolithMetadata.estimated_age.label('age'),
         func.avg(models.OtolithMetadata.length_mm).label('avg_length')
-    ).filter(
-        models.OtolithMetadata.estimated_age.is_not(None),
-        models.OtolithMetadata.length_mm.is_not(None)
-    ).group_by(
-        models.OtolithMetadata.estimated_age
-    ).order_by(
-        models.OtolithMetadata.estimated_age
-    )
+    ).filter(models.OtolithMetadata.estimated_age.is_not(None))
 
-    results = query.all()
+    # 2. Add the species filter
+    if species_id:
+        query = query.filter(models.OtolithMetadata.species_id == species_id)
 
-    ages = [f"Age {row.age}" for row in results]
-    lengths = [round(row.avg_length, 2) for row in results]
-
-    return {"ages": ages, "lengths": lengths}
+    results = query.group_by(models.OtolithMetadata.estimated_age).order_by(models.OtolithMetadata.estimated_age).all()
+    return {
+        "ages": [f"Age {row.age}" for row in results], 
+        "lengths": [round(row.avg_length, 2) for row in results]
+    }
 
 # ---------------------------------------------------------
 # OCEANOGRAPHIC MODULE ENDPOINTS
@@ -411,3 +380,53 @@ def get_biodiversity_balance(
         "evenness": [row.evenness for row in results],
         "functional": [row.functional for row in results]
     }
+
+# ---------------------------------------------------------
+# CONSERVATION & LIFE HISTORY MODULE ENDPOINTS
+# ---------------------------------------------------------
+
+@app.get("/api/conservation/trophic")
+def get_conservation_trophic(db: Session = Depends(get_db)):
+    """Returns Trophic Level vs Max Length for a Scatter Plot."""
+    results = db.query(
+        models.SpeciesData.scientific_name,
+        models.SpeciesData.trophic_level,
+        models.SpeciesData.max_length_cm,
+        models.SpeciesData.max_weight_kg
+    ).filter(
+        models.SpeciesData.trophic_level.is_not(None),
+        models.SpeciesData.max_length_cm.is_not(None)
+    ).all()
+
+    # Format: [X (Length), Y (Trophic), Size/Weight, Name]
+    scatter_data = []
+    for r in results:
+        # Default weight to 1 if missing so the bubble still renders
+        weight = r.max_weight_kg if r.max_weight_kg is not None else 1 
+        scatter_data.append([r.max_length_cm, r.trophic_level, weight, r.scientific_name])
+
+    return {"scatter": scatter_data}
+
+@app.get("/api/conservation/iucn")
+def get_conservation_iucn(db: Session = Depends(get_db)):
+    """Returns counts of species grouped by IUCN Status."""
+    results = db.query(
+        models.SpeciesData.iucn_status,
+        func.count(models.SpeciesData.species_id).label('count')
+    ).filter(models.SpeciesData.iucn_status.is_not(None)).group_by(models.SpeciesData.iucn_status).all()
+
+    iucn_data = [{"name": row.iucn_status, "value": row.count} for row in results]
+    return {"iucn": iucn_data}
+
+@app.get("/api/conservation/commercial")
+def get_conservation_commercial(db: Session = Depends(get_db)):
+    """Returns counts of species grouped by Commercial Value."""
+    results = db.query(
+        models.SpeciesData.commercial_value,
+        func.count(models.SpeciesData.species_id).label('count')
+    ).filter(models.SpeciesData.commercial_value.is_not(None)).group_by(models.SpeciesData.commercial_value).all()
+
+    categories = [row.commercial_value for row in results]
+    counts = [row.count for row in results]
+
+    return {"categories": categories, "counts": counts}

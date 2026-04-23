@@ -29,8 +29,8 @@ export default function VisualizationsHub() {
       icon: "🧬"
     },
     {
-      title: "Species Encyclopedia",
-      path: "/taxonomy", // Links back to your existing taxonomy/detail pages
+      title: "Conservation",
+      path: "/modules/conservation", // Links back to your existing taxonomy/detail pages
       description: "Deep dive into individual species profiles, trophic levels, and genetics.",
       icon: "🐟"
     },

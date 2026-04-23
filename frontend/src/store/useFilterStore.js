@@ -18,7 +18,8 @@ export const useFilterStore = create((set) => ({
   setDepth: (depthRange) => set({ selectedDepth: depthRange }),
   
   toggleElNino: (isActive) => set({ elNinoActive: isActive }),
-  
+  selectedSpeciesId: null, // null means "All Species"
+  setSpeciesId: (id) => set({ selectedSpeciesId: id }),
   // --- 3. UTILITY (A quick way to clear the board) ---
   resetFilters: () => set({
     selectedRegion: 'Global',

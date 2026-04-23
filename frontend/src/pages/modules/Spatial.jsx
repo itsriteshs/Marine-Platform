@@ -5,26 +5,25 @@ import { useFilterStore } from '../../store/useFilterStore';
 import './Spatial.css';
 
 export default function Spatial() {
-  const selectedRegion = useFilterStore((state) => state.selectedRegion);
+  // Grab BOTH selectedRegion and selectedSpeciesId from the store
+  const { selectedRegion, selectedSpeciesId } = useFilterStore();
 
-  // States for Hotspot Map
   const [hotspotData, setHotspotData] = useState([]);
   const [isMapLoading, setIsMapLoading] = useState(true);
 
-  // States for Depth Chart
   const [depthData, setDepthData] = useState({ years: [], depths: [] });
   const [isDepthLoading, setIsDepthLoading] = useState(true);
 
-  // States for Blindspot Chart
   const [effortData, setEffortData] = useState({ months: [], efforts: [] });
   const [isEffortLoading, setIsEffortLoading] = useState(true);
 
-  // The Fetching Engine
   useEffect(() => {
     const fetchHotspots = async () => {
       setIsMapLoading(true);
       try {
-        const response = await axios.get(`http://localhost:8000/api/spatial/hotspots`, { params: { region: selectedRegion } });
+        const response = await axios.get(`http://localhost:8000/api/spatial/hotspots`, { 
+          params: { region: selectedRegion, species_id: selectedSpeciesId } 
+        });
         setHotspotData(response.data.hotspots);
       } catch (error) { console.error("Failed to fetch hotspots:", error); } 
       finally { setIsMapLoading(false); }
@@ -33,38 +32,41 @@ export default function Spatial() {
     const fetchDepthTrend = async () => {
       setIsDepthLoading(true);
       try {
-        const response = await axios.get(`http://localhost:8000/api/spatial/depth-trend`, { params: { region: selectedRegion } });
+        const response = await axios.get(`http://localhost:8000/api/spatial/depth-trend`, { 
+          params: { region: selectedRegion, species_id: selectedSpeciesId } 
+        });
         setDepthData({ years: response.data.years, depths: response.data.depths });
       } catch (error) { console.error("Failed to fetch depth trend:", error); } 
       finally { setIsDepthLoading(false); }
     };
 
-    // 3. Fetch Sampling Effort
     const fetchEffort = async () => {
       setIsEffortLoading(true);
       try {
-        const response = await axios.get(`http://localhost:8000/api/spatial/sampling-effort`, { params: { region: selectedRegion } });
+        const response = await axios.get(`http://localhost:8000/api/spatial/sampling-effort`, { 
+          params: { region: selectedRegion, species_id: selectedSpeciesId } 
+        });
         setEffortData({ months: response.data.months, efforts: response.data.efforts });
       } catch (error) { console.error("Failed to fetch sampling effort:", error); } 
       finally { setIsEffortLoading(false); }
     };
 
-    // Run all fetches simultaneously
     fetchHotspots();
     fetchDepthTrend();
     fetchEffort();
-  }, [selectedRegion]);
+    
+    // Ensure the effect runs when EITHER value changes
+  }, [selectedRegion, selectedSpeciesId]);
 
-  // 🗺️ CHART 1: The Live Hero Map
   const mapOption = {
     title: { 
       text: `Sighting Hotspots: ${selectedRegion}`,
-      subtext: 'Bubble size indicates the number of individuals sighted.', // 👈 ADDED CONTEXT
+      subtext: 'Bubble size indicates the number of individuals sighted.',
       left: 'left' 
     },
     tooltip: { 
       trigger: 'item',
-      backgroundColor: 'rgba(255, 255, 255, 0.9)', // Cleaner tooltip background
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
       formatter: function (params) {
         return `
           <strong>Sighting Detail</strong><br/>
@@ -84,11 +86,10 @@ export default function Spatial() {
     }]
   };
 
-  // 📉 CHART 2: LIVE Depth Shifting
   const depthOption = {
     title: { 
       text: 'Average Depth by Year', 
-      subtext: 'Downward trends may indicate climate-driven depth shifting.', // 👈 ADDED CONTEXT
+      subtext: 'Downward trends may indicate climate-driven depth shifting.',
       left: 'center', 
       textStyle: { fontSize: 14 } 
     },
@@ -107,11 +108,10 @@ export default function Spatial() {
     }]
   };
 
-  // 📊 CHART 3: LIVE Sampling Effort
   const blindspotOption = {
     title: { 
       text: 'Sampling Effort by Month', 
-      subtext: 'Zero-values indicate potential data blindspots.', // 👈 ADDED CONTEXT
+      subtext: 'Zero-values indicate potential data blindspots.',
       left: 'center', 
       textStyle: { fontSize: 14 } 
     },
@@ -119,10 +119,10 @@ export default function Spatial() {
       trigger: 'axis',
       formatter: '<strong>{b}</strong>: {c} expeditions logged'
     },
-    xAxis: { type: 'category', data: effortData.months }, // 👈 LIVE POSTGRES MONTHS
+    xAxis: { type: 'category', data: effortData.months },
     yAxis: { type: 'value', name: 'Expeditions' },
     series: [{
-      data: effortData.efforts, // 👈 LIVE POSTGRES EFFORTS
+      data: effortData.efforts,
       type: 'bar',
       itemStyle: { color: '#f59e0b' }
     }]

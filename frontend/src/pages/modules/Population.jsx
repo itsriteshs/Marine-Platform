@@ -5,17 +5,14 @@ import { useFilterStore } from '../../store/useFilterStore';
 import './Population.css';
 
 export default function Population() {
-  const selectedRegion = useFilterStore((state) => state.selectedRegion);
+  // 1. Grab BOTH state variables from Zustand
+  const { selectedRegion, selectedSpeciesId } = useFilterStore();
 
-  // States for Abundance Trend (Hero Chart)
+  // (Keep all your existing useState hooks here...)
   const [abundanceData, setAbundanceData] = useState({ months: [], abundance: [] });
   const [isAbundanceLoading, setIsAbundanceLoading] = useState(true);
-
-  // States for Demographics (Donut Chart)
   const [demoData, setDemoData] = useState([]);
   const [isDemoLoading, setIsDemoLoading] = useState(true);
-
-  // States for Otolith Growth (Bar Chart)
   const [growthData, setGrowthData] = useState({ ages: [], lengths: [] });
   const [isGrowthLoading, setIsGrowthLoading] = useState(true);
 
@@ -24,38 +21,41 @@ export default function Population() {
       setIsAbundanceLoading(true);
       try {
         const response = await axios.get(`http://localhost:8000/api/population/abundance`, {
-          params: { region: selectedRegion }
+          // 2. Pass BOTH parameters to the backend
+          params: { region: selectedRegion, species_id: selectedSpeciesId }
         });
         setAbundanceData({ months: response.data.months, abundance: response.data.abundance });
-      } catch (error) { console.error("Failed to fetch abundance:", error); } 
-      finally { setIsAbundanceLoading(false); }
+      } catch (error) { console.error(error); } finally { setIsAbundanceLoading(false); }
     };
 
     const fetchDemographics = async () => {
       setIsDemoLoading(true);
       try {
         const response = await axios.get(`http://localhost:8000/api/population/demographics`, {
-          params: { region: selectedRegion }
+          // 2. Pass BOTH parameters to the backend
+          params: { region: selectedRegion, species_id: selectedSpeciesId }
         });
         setDemoData(response.data.demographics);
-      } catch (error) { console.error("Failed to fetch demographics:", error); } 
-      finally { setIsDemoLoading(false); }
+      } catch (error) { console.error(error); } finally { setIsDemoLoading(false); }
     };
 
     const fetchGrowth = async () => {
       setIsGrowthLoading(true);
       try {
-        // Growth is biological, so it isn't filtered by region in our current backend
-        const response = await axios.get(`http://localhost:8000/api/population/growth`);
+        const response = await axios.get(`http://localhost:8000/api/population/growth`, {
+          // 2. Pass the species parameter (Growth isn't filtered by region)
+          params: { species_id: selectedSpeciesId }
+        });
         setGrowthData({ ages: response.data.ages, lengths: response.data.lengths });
-      } catch (error) { console.error("Failed to fetch growth:", error); } 
-      finally { setIsGrowthLoading(false); }
+      } catch (error) { console.error(error); } finally { setIsGrowthLoading(false); }
     };
 
     fetchAbundance();
     fetchDemographics();
     fetchGrowth();
-  }, [selectedRegion]);
+    
+    // 3. Ensure the useEffect re-runs when EITHER the region or species changes
+  }, [selectedRegion, selectedSpeciesId]);
 
   // 📈 CHART 1: Abundance Time-Series
   const abundanceOption = {
