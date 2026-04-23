@@ -9,6 +9,9 @@ import SpeciesDetail from "./pages/SpeciesDetail";
 import Search from "./pages/Search";
 import "./App.css";
 import Spatial from './pages/modules/Spatial';
+import Population from './pages/modules/Population';
+import Oceanographic from './pages/modules/Oceanographic';
+import Biodiversity from './pages/modules/Biodiversity';
 import VisualizationsHub from './pages/modules/VisualizationHub';
 function DashboardLayout() {
   return (
@@ -40,6 +43,9 @@ function App() {
             <Route index element={<VisualizationsHub />} />
             {/* 3. Changed the path to just "spatial" (it inherits the /modules/ prefix automatically) */}
             <Route path="spatial" element={<Spatial />} />
+            <Route path="population" element={<Population />} /> {/* <--- Add this line */}
+            <Route path="oceanographic" element={<Oceanographic />} /> {/* <--- New Route */}
+            <Route path="ecosystem" element={<Biodiversity />} /> {/* <--- Add this line */}
           </Route>
         </Routes>
       </div>

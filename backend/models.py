@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Text, ARRAY, DateTime
+from sqlalchemy import Column, Integer, String, Float, Text, ARRAY, DateTime,Numeric
 from database import Base
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -80,4 +80,57 @@ class OccurrenceData(Base):
     species_id = Column(Integer, index=True)
     upload_id = Column(Integer)
     region = Column(Text, index=True)
+    data = Column(JSONB, nullable=False)
+
+class MonthlyLocationAbundance(Base):
+    __tablename__ = "monthly_location_abundance"
+
+    id = Column(Integer, primary_key=True, index=True)
+    species_id = Column(Integer, index=True)
+    region = Column(Text, index=True)
+    upload_id = Column(Integer)
+    data = Column(JSONB, nullable=False)
+
+
+class JuvenileAdultLocationYear(Base):
+    __tablename__ = "juvenile_adult_location_year"
+
+    id = Column(Integer, primary_key=True, index=True)
+    species_id = Column(Integer, index=True)
+    region = Column(Text, index=True)
+    upload_id = Column(Integer)
+    data = Column(JSONB, nullable=False)
+
+
+class OtolithMetadata(Base):
+    __tablename__ = "otolith_metadata"
+
+    otolith_id = Column(Integer, primary_key=True, index=True)
+    species_id = Column(Integer, index=True)
+    estimated_age = Column(Integer)
+    ring_count = Column(Integer)
+    area_mm2 = Column(Float)       # Mapped NUMERIC to Float for Python
+    perimeter_mm = Column(Float)
+    length_mm = Column(Float)
+    width_mm = Column(Float)
+    aspect_ratio = Column(Float)
+    circularity = Column(Float)
+    raw_image_url = Column(Text)
+    processed_image_url = Column(Text)
+    upload_id = Column(Integer)
+
+class OceanographicData(Base):
+    __tablename__ = "oceanographic_data"
+
+    id = Column(Integer, primary_key=True, index=True)
+    region = Column(Text, index=True)
+    upload_id = Column(Integer)
+    data = Column(JSONB, nullable=False)
+
+class SpeciesDiversity(Base):
+    __tablename__ = "species_diversity"
+
+    id = Column(Integer, primary_key=True, index=True)
+    region = Column(Text, index=True)
+    upload_id = Column(Integer)
     data = Column(JSONB, nullable=False)
