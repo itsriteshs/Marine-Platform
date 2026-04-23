@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, Text, ARRAY, DateTime
 from database import Base
+from sqlalchemy.dialects.postgresql import JSONB
 
 class SpeciesData(Base):
     __tablename__ = "species_data"
@@ -71,3 +72,12 @@ class SpeciesData(Base):
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
     data_source = Column(String(255))
+
+class OccurrenceData(Base):
+    __tablename__ = "occurrence_data"
+
+    occurrence_id = Column(Text, primary_key=True, index=True)
+    species_id = Column(Integer, index=True)
+    upload_id = Column(Integer)
+    region = Column(Text, index=True)
+    data = Column(JSONB, nullable=False)

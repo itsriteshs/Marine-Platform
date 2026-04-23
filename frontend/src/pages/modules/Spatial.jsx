@@ -5,43 +5,72 @@ import { useFilterStore } from '../../store/useFilterStore';
 import './Spatial.css';
 
 export default function Spatial() {
-  // Grab the region from Zustand
   const selectedRegion = useFilterStore((state) => state.selectedRegion);
 
-  // Set up React State to hold the live data and loading status
+  // States for Hotspot Map
   const [hotspotData, setHotspotData] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isMapLoading, setIsMapLoading] = useState(true);
 
-  // The Fetching Engine: Runs every time 'selectedRegion' changes
+  // States for Depth Chart
+  const [depthData, setDepthData] = useState({ years: [], depths: [] });
+  const [isDepthLoading, setIsDepthLoading] = useState(true);
+
+  // States for Blindspot Chart
+  const [effortData, setEffortData] = useState({ months: [], efforts: [] });
+  const [isEffortLoading, setIsEffortLoading] = useState(true);
+
+  // The Fetching Engine
   useEffect(() => {
     const fetchHotspots = async () => {
-      setIsLoading(true);
+      setIsMapLoading(true);
       try {
-        // Ping your new FastAPI endpoint
-        const response = await axios.get(`http://localhost:8000/api/spatial/hotspots`, {
-          params: { region: selectedRegion }
-        });
-        
-        // Save the array of [lon, lat, count] into state
+        const response = await axios.get(`http://localhost:8000/api/spatial/hotspots`, { params: { region: selectedRegion } });
         setHotspotData(response.data.hotspots);
-      } catch (error) {
-        console.error("Failed to fetch spatial data:", error);
-      } finally {
-        setIsLoading(false);
-      }
+      } catch (error) { console.error("Failed to fetch hotspots:", error); } 
+      finally { setIsMapLoading(false); }
     };
 
+    const fetchDepthTrend = async () => {
+      setIsDepthLoading(true);
+      try {
+        const response = await axios.get(`http://localhost:8000/api/spatial/depth-trend`, { params: { region: selectedRegion } });
+        setDepthData({ years: response.data.years, depths: response.data.depths });
+      } catch (error) { console.error("Failed to fetch depth trend:", error); } 
+      finally { setIsDepthLoading(false); }
+    };
+
+    // 3. Fetch Sampling Effort
+    const fetchEffort = async () => {
+      setIsEffortLoading(true);
+      try {
+        const response = await axios.get(`http://localhost:8000/api/spatial/sampling-effort`, { params: { region: selectedRegion } });
+        setEffortData({ months: response.data.months, efforts: response.data.efforts });
+      } catch (error) { console.error("Failed to fetch sampling effort:", error); } 
+      finally { setIsEffortLoading(false); }
+    };
+
+    // Run all fetches simultaneously
     fetchHotspots();
-  }, [selectedRegion]); // 👈 This dependency array is the magic link to the Topbar
+    fetchDepthTrend();
+    fetchEffort();
+  }, [selectedRegion]);
 
   // 🗺️ CHART 1: The Live Hero Map
   const mapOption = {
-    title: { text: `Sighting Hotspots: ${selectedRegion}`, left: 'left' },
+    title: { 
+      text: `Sighting Hotspots: ${selectedRegion}`,
+      subtext: 'Bubble size indicates the number of individuals sighted.', // 👈 ADDED CONTEXT
+      left: 'left' 
+    },
     tooltip: { 
       trigger: 'item',
+      backgroundColor: 'rgba(255, 255, 255, 0.9)', // Cleaner tooltip background
       formatter: function (params) {
-        // Formats the hover tooltip cleanly
-        return `Long: ${params.data[0]}<br/>Lat: ${params.data[1]}<br/>Count: ${params.data[2]}`;
+        return `
+          <strong>Sighting Detail</strong><br/>
+          Coordinates: ${params.data[1]}°N, ${params.data[0]}°E<br/>
+          <span style="color: #3b82f6; font-weight: bold;">Individuals Count: ${params.data[2]}</span>
+        `;
       }
     },
     xAxis: { type: 'value', name: 'Longitude', scale: true },
@@ -49,23 +78,28 @@ export default function Spatial() {
     series: [{
       name: 'Sightings',
       type: 'scatter',
-      symbolSize: function (data) { 
-        // Makes the bubble size proportional to the fish count!
-        return Math.sqrt(data[2]) * 4; 
-      },
+      symbolSize: function (data) { return Math.sqrt(data[2]) * 4; },
       itemStyle: { color: 'rgba(59, 130, 246, 0.6)' },
-      data: hotspotData // 👈 LIVE POSTGRESQL DATA PLUGGED IN HERE
+      data: hotspotData
     }]
   };
 
-  // 📉 CHART 2: Depth Shifting (Still using dummy data for now)
+  // 📉 CHART 2: LIVE Depth Shifting
   const depthOption = {
-    title: { text: 'Depth Distribution by Year', left: 'center', textStyle: { fontSize: 14 } },
-    tooltip: { trigger: 'axis' },
-    xAxis: { type: 'category', data: ['2020', '2021', '2022', '2023', '2024', '2025'] },
+    title: { 
+      text: 'Average Depth by Year', 
+      subtext: 'Downward trends may indicate climate-driven depth shifting.', // 👈 ADDED CONTEXT
+      left: 'center', 
+      textStyle: { fontSize: 14 } 
+    },
+    tooltip: { 
+      trigger: 'axis',
+      formatter: '{b}: Average depth of <strong>{c} meters</strong>'
+    },
+    xAxis: { type: 'category', data: depthData.years },
     yAxis: { type: 'value', name: 'Depth (m)', inverse: true },
     series: [{
-      data: [45, 50, 65, 80, 110, 140],
+      data: depthData.depths,
       type: 'line',
       smooth: true,
       areaStyle: { color: 'rgba(16, 185, 129, 0.3)' },
@@ -73,14 +107,22 @@ export default function Spatial() {
     }]
   };
 
-  // 📊 CHART 3: Data Blindspots (Still using dummy data for now)
+  // 📊 CHART 3: LIVE Sampling Effort
   const blindspotOption = {
-    title: { text: 'Sampling Effort by Month', left: 'center', textStyle: { fontSize: 14 } },
-    tooltip: { trigger: 'axis' },
-    xAxis: { type: 'category', data: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] },
+    title: { 
+      text: 'Sampling Effort by Month', 
+      subtext: 'Zero-values indicate potential data blindspots.', // 👈 ADDED CONTEXT
+      left: 'center', 
+      textStyle: { fontSize: 14 } 
+    },
+    tooltip: { 
+      trigger: 'axis',
+      formatter: '<strong>{b}</strong>: {c} expeditions logged'
+    },
+    xAxis: { type: 'category', data: effortData.months }, // 👈 LIVE POSTGRES MONTHS
     yAxis: { type: 'value', name: 'Expeditions' },
     series: [{
-      data: [12, 15, 20, 5, 2, 0, 0, 8, 22, 25, 18, 10],
+      data: effortData.efforts, // 👈 LIVE POSTGRES EFFORTS
       type: 'bar',
       itemStyle: { color: '#f59e0b' }
     }]
@@ -94,17 +136,16 @@ export default function Spatial() {
       </div>
 
       <div className="bento-grid">
-        {/* Pass our new isLoading state into the BaseChart so it shows a loading spinner! */}
         <div className="bento-card hero-card">
-          <BaseChart option={mapOption} height="500px" isLoading={isLoading} />
+          <BaseChart option={mapOption} height="500px" isLoading={isMapLoading} />
         </div>
 
         <div className="bento-card">
-          <BaseChart option={depthOption} height="300px" />
+          <BaseChart option={depthOption} height="300px" isLoading={isDepthLoading} />
         </div>
 
         <div className="bento-card">
-          <BaseChart option={blindspotOption} height="300px" />
+          <BaseChart option={blindspotOption} height="300px" isLoading={isEffortLoading} />
         </div>
       </div>
     </div>
