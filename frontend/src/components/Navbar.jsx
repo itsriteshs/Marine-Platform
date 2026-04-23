@@ -30,6 +30,9 @@ const Navbar = () => {
         <Link to="/taxonomy" className="nav-link">Taxonomy</Link>
         <Link to="/analysis" className="nav-link">Analysis</Link>
         <Link to="/search" className="nav-link">Search</Link>
+        <Link to="/modules" className="nav-link">
+          Visualizations
+        </Link>
       </div>
       <div className="navbar-actions">
         <button className="support-btn">
